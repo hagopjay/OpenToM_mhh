@@ -334,7 +334,8 @@ def build_prompt(
             mover, 
             affected_char, 
             eoi, 
-            question_content, 
+            #question_content, 
+            question_content = f"{question_content} Answer with 'Yes' or 'No'.",
             question_content_tokens, 
             cur_narrative, 
             model_info["location_fg_prompt_template"],
@@ -364,7 +365,8 @@ def build_prompt(
             move_to_place, 
             mover, 
             affected_char, 
-            question_content, 
+            #question_content,
+            question_content = f"{question_content} Answer with 'Full', 'Not Full', or 'Unknown'." 
             question_content_tokens, 
             cur_narrative, 
             model_info["multihop_fullness_prompt_template"],
@@ -380,7 +382,7 @@ def build_prompt(
             mover, 
             affected_char,
             eoi,
-            question_content,
+            question_content = f"{question_content} Answer with 'Accessible' or 'Not Accessible'."
             question_content_tokens,
             cur_narrative,
             model_info["multihop_accessibility_prompt_template"],
@@ -397,7 +399,7 @@ def build_prompt(
             mover,
             affected_char,
             cur_narrative, 
-            question_content, 
+            question_content = f"{question_content} Answer with 'Positive', 'Neutral', or 'Negative'."
             cot_flag,
             cot_postfix,
             simtom_template,
@@ -412,7 +414,7 @@ def build_prompt(
             affected_char,
             eoi,
             cur_narrative,
-            question_content,
+            question_content = f"{question_content} Answer with 'Yes' or 'No'."
             model_info["preference_prompt_template"],
             cot_flag,
             cot_postfix,
@@ -423,7 +425,7 @@ def build_prompt(
         cur_prompt, coi = OpenToMPromptBuilder.intention(
             cur_narrative,
             mover,
-            question_content,
+            cur_prompt = f"{cur_prompt}\n\nChoose the most appropriate answer from the following options:\n{question_dict['options']}"
             question_dict,
             model_info["intention_prompt_template"],
             cot_flag,
