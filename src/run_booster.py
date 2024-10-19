@@ -1,4 +1,4 @@
-%%writefile run_booster.py
+#%%writefile run_booster.py
 
 import sys, os
 import random
