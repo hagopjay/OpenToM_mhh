@@ -30,7 +30,7 @@ def sample_entries(meta_data: dict, batch_size: int = 50):
 
 pre_prompt = f"Please perform a meticulous, precise and highly detailed analysis of the provided narrative using the following guidelines: 1. Assemble a Timeline: Construct a clear, step-by-step timeline of the conversation and actions, noting any points where a character, subject or object enters, leaves, or returns to the narrative or conversation. Keep track of subject's and object's states of accessibility and inaccessibility, along with emotion and sentiments expressed. 2. Meticulous Tracking of Explicit Perceptions: - Identify and document each character's explicit Perceptions based only on what they directly hear, see, or experience in the narrative. - Do not assume a character knows something unless it has been explicitly mentioned or shown in the text that the character has directly experienced it. 3. Do Not Assume Inferences: - Avoid assuming that a character infers information unless the narrative provides clear and explicit evidence that the character made an inference. - If an inference is made within the text, explain what evidence led to this conclusion. 4. Theory of Mind (ToM) Application: - Apply the principles of Theory of Mind, ensuring that each character's knowledge and beliefs are based strictly on their Perceptions and interactions within the timeline. - Track whether each character is aware of what others know or believe based on their direct interaction. 5. Webb Equation of Emotion and Mind Hacking Happiness Framework: - Use these frameworks to explain emotional responses, focusing on how characters' expectations (EPs) and perceptions (P) interact within the narrative. - Account for any emotional reactions that result from mismatched EPs and P. Please ensure that this methodology is followed closely for each part of the narrative.  Please ensure that this methodology is followed closely for each part of the narrative.  You will be asked questions based on this narrative and many of the questions are meant to trick you into answering imprecisely. Please answer precisely, without ever inferring. If an answer is only partially or likely correct, the answer will probably be negative. Please keep your answer as terse as possible. Often the answer will only require a few words."
 
-def build_combined_prompt(key: str, narrative: str, questions: List[Dict]) -> str:
+def build_combined_promptOLD(key: str, narrative: str, questions: List[Dict]) -> str:
     prompt = f"Key: {key} | {pre_prompt} Narrative: {narrative} | Questions: "
     for i, q_dict in enumerate(questions, 1):
         prompt += f"Question {i}: {q_dict['question']} | "
@@ -38,7 +38,7 @@ def build_combined_prompt(key: str, narrative: str, questions: List[Dict]) -> st
 
 
 
-def get_result(key: str, val: dict, all_questions: dict, valid_q_types: list) -> Tuple[str, List[Dict]]:
+def get_resultOLD(key: str, val: dict, all_questions: dict, valid_q_types: list) -> Tuple[str, List[Dict]]:
     narrative = val['long_narrative'] if args.long_narrative else val['narrative']
     
     questions = []
@@ -125,7 +125,7 @@ def get_args():
 
 
 
-def main():
+def mainDEAD():
     global args
     args = get_args()
     set_seed(args.seed)
@@ -160,6 +160,109 @@ def main():
                 # If you implement the API call, you can evaluate responses like this:
                 # eval_results = evaluate_responses(responses, ground_truth)
                 # print(f"Evaluation results for narrative {key}: {eval_results}")
+
+def build_combined_prompt(key: str, narrative: str, questions: List[Dict]) -> str:
+    prompt = f"Key: {key} | {pre_prompt} Narrative: {narrative} | Questions: "
+    for i, q_dict in enumerate(questions, 1):
+        question = q_dict['question']
+        q_type = q_dict['type']
+        
+        # Add appropriate qualifiers based on question type
+        if 'location_cg' in q_type:
+            if 'initial' in question:
+                question = f"{question} Answer with 'Yes' or 'No'."
+            else:
+                question = f"{question} Answer with 'Yes' or 'No'."
+        elif 'multihop' in q_type:
+            if 'fullness' in question.lower():
+                question = f"{question} Answer with 'more full', 'equally full', or 'less full'."
+            elif 'accessibility' in question.lower():
+                question = f"{question} Answer with 'more accessible', 'equally accessible', or 'less accessible'."
+        elif 'attitude' in q_type:
+            question = f"{question} Answer with 'positive', 'neutral', or 'negative'."
+        
+        prompt += f"Question {i}: {question} | "
+    return prompt.strip()
+
+def get_result(key: str, val: dict, all_questions: dict, valid_q_types: list) -> Tuple[str, List[Dict]]:
+    narrative = val['long_narrative'] if args.long_narrative else val['narrative']
+    
+    questions = []
+    ground_truth = []
+    
+    for q_type in valid_q_types:
+        if key in all_questions[q_type]:
+            type_questions = all_questions[q_type][key]
+            for q in type_questions:
+                questions.append({
+                    'question': q['question'],
+                    'type': q_type
+                })
+                ground_truth.append({
+                    'answer': q['answer'],
+                    'type': q_type
+                })
+    
+    combined_prompt = build_combined_prompt(key, narrative, questions)
+    
+    # Write prompt and ground truth to PromptOutBatching.txt
+    output_dir = os.path.dirname(os.path.abspath(__file__))
+    output_file = os.path.join(output_dir, 'PromptOutBatching.txt')
+    
+    with open(output_file, 'a') as f:
+        f.write(f"\n{'='*80}\n")
+        f.write(f"Narrative Key: {key}\n")
+        f.write(combined_prompt)
+        f.write("\n\nGround Truth:\n")
+        for i, truth in enumerate(ground_truth, 1):
+            f.write(f"Answer {i}: {truth['answer']} (Type: {truth['type']})\n")
+        f.write(f"\n{'='*80}\n")
+    
+    # Write answer key to separate file
+    answer_key_file = os.path.join(output_dir, 'AnswerKey.txt')
+    with open(answer_key_file, 'a') as f:
+        f.write(f"Key: {key}\n")
+        for i, truth in enumerate(ground_truth, 1):
+            f.write(f"Q{i}: {truth['answer']}\n")
+        f.write(f"{'='*40}\n")
+    
+    # Print the prompt to console in a single line with double quotes and comma
+    console_prompt = combined_prompt.replace('"', "'").replace('\n', ' ')
+    print(f'"{console_prompt}",')
+    
+    return combined_prompt, ground_truth
+
+def main():
+    global args
+    args = get_args()
+    set_seed(args.seed)
+
+    # Get the current script directory
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Clear the output files at the start of each run
+    output_files = ['PromptOutBatching.txt', 'AnswerKey.txt']
+    for filename in output_files:
+        filepath = os.path.join(script_dir, filename)
+        open(filepath, 'w').close()
+
+    # Load meta_data
+    if args.long_narrative:
+        meta_data = DataUtils.load_json('../data/opentom_data/meta_data_long.json')
+    else:
+        meta_data = DataUtils.load_json('../data/opentom_data/meta_data.json')
+
+    valid_q_types = ['location_cg_fo', 'location_cg_so', 'multihop_fo', 'multihop_so', 'attitude']
+    
+    all_questions = {}
+    for q_type in valid_q_types:
+        all_questions[q_type] = DataUtils.load_json(f'../data/opentom_data/{q_type}.json')
+
+    for batch in range(args.num_batch):
+        for key_list in sample_entries(meta_data, batch_size=args.batch_size):
+            for key in key_list:
+                val = meta_data[key]
+                prompt, ground_truth = get_result(key, val, all_questions, valid_q_types)
 
 if __name__ == '__main__':
     main()
